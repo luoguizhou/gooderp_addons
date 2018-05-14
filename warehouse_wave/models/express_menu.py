@@ -83,9 +83,9 @@ class WhMove(models.Model):
         receiver = dict(Company=' ',
                         Name=model_row.partner_id.name,
                         Mobile=model_row.address_id.mobile,
-                        ProvinceName=model_row.address_id.province_id.name or u'上海',
-                        CityName=model_row.address_id.city_id.city_name or u'上海',
-                        ExpAreaName=model_row.address_id.county_id.county_name or u'浦东新区',
+                        ProvinceName=model_row.address_id.province_id.name or model_row.address_id.city_id.city_name or u'()',
+                        CityName=model_row.address_id.city_id.city_name or u' ',
+                        ExpAreaName=model_row.address_id.county_id.county_name or u' ',
                         Address=model_row.address_id.detail_address or u'金海路2588号B-213')
 
         goods = []
@@ -174,7 +174,7 @@ class WhMove(models.Model):
         ''' 打印快递面单+装箱单 '''
         move_rows = self.browse(move_ids)
         return_html_list = []
-        for move_row in move_rows:
+        for move_row in move_rows.sorted(key=lambda x: int(x.pakge_sequence)):
             if move_row.express_code:
                 return_html_list.append(move_row.express_menu)
             else:
@@ -190,7 +190,7 @@ class WhMove(models.Model):
         ''' 打印装箱单 '''
         move_rows = self.browse(move_ids)
         return_html_list = []
-        for move_row in move_rows:
+        for move_row in move_rows.sorted(key=lambda x: int(x.pakge_sequence)):
             return_html_list.append(self.get_package_list_data(move_row))
 
         return return_html_list
