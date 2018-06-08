@@ -166,6 +166,8 @@ class WhInventory(models.Model):
     @api.multi
     def generate_inventory(self):
         for inventory in self:
+            if self.state in ['done', 'confirmed']:
+                raise UserError(u'请不要重复点击生成盘点单据按钮')
             out_line, in_line = [], []
             for line in inventory.line_ids:
                 if line.difference_qty < 0:
@@ -234,7 +236,8 @@ class WhInventory(models.Model):
                          ('attribute_id', '=', line['attribute_id']),
                          ('lot_id', '=', line['lot']),
                          ('warehouse_id', '=', line['warehouse_id']),
-                         ('type', '=', 'internal')]):
+                         ('type', '=', 'internal'),
+                         ('state', '=', 'draft')]):
                     line['qty'] -= int_line.goods_qty
                     line['uos_qty'] -= int_line.goods_uos_qty
                 if not line['qty']:

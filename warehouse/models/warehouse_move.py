@@ -121,6 +121,14 @@ class WhMove(models.Model):
         context={'type': 'finance'},
         help=u'生成凭证时从此字段上取商品科目的对方科目',
     )
+    all_line_done = fields.Boolean(u'出库行都完成', compute='compute_all_line_done', store=True)
+
+    @api.one
+    @api.depends('line_out_ids.state')
+    def compute_all_line_done(self):
+        """如果所有出库行的状态都为done,则置为True,以便控制发料和出库按钮显隐"""
+        if all(line.state == 'done' for line in self.line_out_ids):
+            self.all_line_done = True
 
     def scan_barcode_move_line_operation(self, line, conversion):
         """
@@ -327,6 +335,8 @@ class WhMove(models.Model):
         :return:
         """
         for order in self:
+            if order.state == 'done':
+                raise UserError(u'请不要重复确认')
             order.prev_approve_order()
             order.line_out_ids.action_done()
             order.line_in_ids.action_done()
@@ -353,6 +363,8 @@ class WhMove(models.Model):
         :return:
         """
         for order in self:
+            if order.state == 'draft':
+                raise UserError(u'请不要重复撤销')
             order.prev_cancel_approved_order()
             order.line_out_ids.action_draft()
             order.line_in_ids.action_draft()

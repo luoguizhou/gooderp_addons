@@ -199,7 +199,7 @@ class MailThread(models.AbstractModel):
             change_state = vals.get('state', False)
 
             # 已提交，确认时报错
-            if len(th._to_approver_ids) == th._approver_num and change_state:
+            if len(th._to_approver_ids) == th._approver_num and change_state == 'done':
                 raise ValidationError(u"审批后才能确认")
             # 已审批
             if not len(th._to_approver_ids):
@@ -415,4 +415,4 @@ class ProcessLine(models.Model):
     sequence = fields.Integer(string='序号')
     group_id = fields.Many2one('res.groups', string=u'审批组', required=True)
     is_all_approve = fields.Boolean(string=u'是否需要本组用户全部审批')
-    process_id = fields.Many2one('good_process.process', u'审批规则')
+    process_id = fields.Many2one('good_process.process', u'审批规则', ondelete='cascade')

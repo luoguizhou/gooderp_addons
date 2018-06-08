@@ -107,6 +107,16 @@ class TestGoods(TransactionCase):
             self.hd_warehouse, 24, ignore_move=self.others_in_keyboard_mouse.id)
         self.assertEqual(suggested_cost, 24 * 80)
 
+    def test_compute_stock_qty(self):
+        self.assertEqual(self.goods_cable.current_qty, 48)
+
+    def test_write(self):
+        """商品有库存，不允许修改单位或转化率"""
+        with self.assertRaises(UserError):
+            self.goods_cable.uos_id = self.env.ref('core.uom_pc').id
+        with self.assertRaises(UserError):
+            self.goods_cable.conversion = 3
+
 
 class TestResCompany(TransactionCase):
 

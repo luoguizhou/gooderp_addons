@@ -169,8 +169,6 @@ class BuyReceipt(models.Model):
 
     @api.one
     def _wrong_receipt_done(self):
-        if self.state == 'done':
-            raise UserError(u'请不要重复入库！')
         batch_one_list_wh = []
         batch_one_list = []
         for line in self.line_in_ids:
@@ -226,8 +224,11 @@ class BuyReceipt(models.Model):
         if self.order_id:
             for line in self.line_in_ids:
                 line.buy_line_id.quantity_in += line.goods_qty
-            for line in self.line_out_ids:
-                line.buy_line_id.quantity_in -= line.goods_qty
+            for line in self.line_out_ids:  # 退货单行
+                if self.order_id.type == 'return':  # 退货类型的buy_order生成的采购退货单审核
+                    line.buy_line_id.quantity_in += line.goods_qty
+                else:
+                    line.buy_line_id.quantity_in -= line.goods_qty
 
         return
 
@@ -401,8 +402,7 @@ class BuyReceipt(models.Model):
         invoice_id = self._receipt_make_invoice()
         self.write({
             'voucher_id': voucher and voucher.id,
-            'invoice_id': invoice_id and invoice_id.id,
-            'state': 'done',    # 为保证审批流程顺畅，否则，未审批就可审核
+            'invoice_id': invoice_id and invoice_id.id,# 为保证审批流程顺畅，否则，未审批就可审核
         })
         # 采购费用产生结算单
         self._buy_amount_to_invoice()
@@ -426,7 +426,8 @@ class BuyReceipt(models.Model):
         source_line = self.env['source.order.line'].search(
             [('name', '=', self.invoice_id.id)])
         for line in source_line:
-            line.money_id.money_order_draft()  # 反审核付款单
+            if line.money_id.state == 'done':
+                line.money_id.money_order_draft()  # 反审核付款单
             # 判断付款单 源单行 是否有别的行存在
             other_source_line = []
             for s_line in line.money_id.source_ids:
@@ -447,20 +448,22 @@ class BuyReceipt(models.Model):
         # 如果存在分单，则将差错修改中置为 True，再次审核时不生成分单
         self.write({
             'modifying': False,
-            'state': 'draft',
         })
         receipt_ids = self.search(
             [('order_id', '=', self.order_id.id)])
         if len(receipt_ids) > 1:
             self.write({
                 'modifying': True,
-                'state': 'draft',
             })
         # 修改订单行中已执行数量
         if self.order_id:
-            line_ids = not self.is_return and self.line_in_ids or self.line_out_ids
-            for line in line_ids:
+            for line in self.line_in_ids:
                 line.buy_line_id.quantity_in -= line.goods_qty
+            for line in self.line_out_ids:
+                if self.order_id.type == 'return':
+                    line.buy_line_id.quantity_in -= line.goods_qty
+                else:
+                    line.buy_line_id.quantity_in += line.goods_qty
         # 调用wh.move中反审核方法，更新审核人和审核状态
         self.buy_move_id.cancel_approved_order()
 
